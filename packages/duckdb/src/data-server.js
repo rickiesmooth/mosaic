@@ -25,6 +25,12 @@ export function dataServer(db, {
   if (socket) console.log(`  ws://localhost:${port}/`);
 }
 
+export const dataHandler = (db, { cache_dir = CACHE_DIR }) => {
+  const queryCache = new Cache({ dir: cache_dir });
+  const handleQuery = queryHandler(db, queryCache);
+  return (req, res) => requestHandler(req, res, handleQuery);
+};
+
 function createHTTPServer(handleQuery, rest) {
   return http.createServer((req, resp) => {
     const res = httpResponse(resp);
@@ -38,24 +44,8 @@ function createHTTPServer(handleQuery, rest) {
     resp.setHeader('Access-Control-Allow-Methods', 'OPTIONS, POST, GET');
     resp.setHeader('Access-Control-Allow-Headers', '*');
     resp.setHeader('Access-Control-Max-Age', 2592000);
-
-    switch (req.method) {
-      case 'OPTIONS':
-        res.done();
-        break;
-      case 'GET':
-        handleQuery(res, url.parse(req.url, true).query);
-        break;
-      case 'POST': {
-        const chunks = [];
-        req.on('error', err => res.error(err, 500));
-        req.on('data', chunk => chunks.push(chunk));
-        req.on('end', () => handleQuery(res, Buffer.concat(chunks)));
-        break;
-      }
-      default:
-        res.error(`Unsupported HTTP method: ${req.method}`, 400);
-    }
+    
+    requestHandler(req, resp, handleQuery);
   });
 }
 
@@ -66,6 +56,26 @@ function createSocketServer(server, handleQuery) {
     const res = socketResponse(socket);
     socket.on('message', data => handleQuery(res, data));
   });
+}
+
+function requestHandler(req, res, handleQuery) {
+  switch (req.method) {
+    case "OPTIONS":
+      res.done();
+      break;
+    case "GET":
+      handleQuery(res, url.parse(req.url, true).query);
+      break;
+    case "POST": {
+      const chunks = [];
+      req.on("error", (err) => res.error(err, 500));
+      req.on("data", (chunk) => chunks.push(chunk));
+      req.on("end", () => handleQuery(res, Buffer.concat(chunks)));
+      break;
+    }
+    default:
+      res.error(`Unsupported HTTP method: ${req.method}`, 400);
+  }
 }
 
 function queryHandler(db, queryCache) {

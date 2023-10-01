@@ -31,3 +31,12 @@ Launch a data server in Node.js:
 import { DuckDB, dataServer } from "@uwdata/mosaic-duckdb";
 dataServer(new DuckDB(), { rest: true, socket: true });
 ```
+
+Or create a handler:
+
+``` js
+import { DuckDB, dataHandler } from "@uwdata/mosaic-duckdb";
+const duckDBHandler = dataHandler(new DuckDB(), { cache_dir: 'tmp/' });
+
+export const handler = duckDBHandler(req, res)
+```
